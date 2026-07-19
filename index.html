@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Face Match | 好みの顔 診断</title>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { font-family:'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', sans-serif; color:#4A4544;
+  background: linear-gradient(160deg, #FDF9F5 0%, #FBEDEC 60%, #F7E4E6 100%); min-height:100vh; }
+.wrap { max-width:440px; margin:0 auto; padding:20px 18px 48px; }
+.brand { text-align:center; font-size:12px; letter-spacing:3px; color:#C9A86A; font-weight:700; padding:6px 0 18px; }
+.screen { display:none; }
+.screen.active { display:block; animation: fadein .45s ease; }
+@keyframes fadein { from { opacity:0; transform:translateY(10px);} to { opacity:1; transform:none;} }
+h1 { font-size:24px; line-height:1.5; text-align:center; margin-bottom:10px; }
+.sub { text-align:center; font-size:13.5px; color:#8A807E; line-height:1.8; margin-bottom:26px; }
+.mode-card { background:#fff; border-radius:22px; padding:22px 20px; margin-bottom:16px;
+  box-shadow:0 8px 24px rgba(214,112,125,.10); cursor:pointer; transition:transform .15s ease; border:2px solid transparent; }
+.mode-card:active { transform:scale(.97); }
+.mode-card .mc-emoji { font-size:30px; }
+.mode-card h3 { font-size:17px; margin:8px 0 6px; }
+.mode-card p { font-size:12.5px; color:#8A807E; line-height:1.7; }
+.mode-card .mc-meta { display:inline-block; margin-top:10px; font-size:11px; color:#D6707D; background:#FBEDEC; border-radius:999px; padding:4px 12px; font-weight:700; }
+.footnote { text-align:center; font-size:10.5px; color:#B8AEAC; margin-top:18px; line-height:1.7; }
+.progress-outer { height:6px; background:#F2E2E1; border-radius:99px; overflow:hidden; margin-bottom:8px; }
+.progress-inner { height:100%; width:0%; background:linear-gradient(90deg,#E58B96,#C9A86A); border-radius:99px; transition:width .35s ease; }
+.pcount { text-align:right; font-size:11px; color:#B8AEAC; margin-bottom:14px; }
+h2.q { font-size:18px; text-align:center; line-height:1.6; margin-bottom:18px; }
+.pair-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; position:relative; }
+.pcard { position:relative; border-radius:18px; overflow:hidden; aspect-ratio:4/5; background:#F4EAE6;
+  box-shadow:0 6px 18px rgba(214,112,125,.12); cursor:pointer; transition:transform .15s ease; }
+.pcard:active { transform:scale(.96); }
+.pcard img { width:100%; height:100%; object-fit:cover; display:block; }
+.vs { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:3;
+  background:#fff; color:#D6707D; font-weight:700; font-size:13px; border-radius:99px; padding:8px 12px;
+  box-shadow:0 4px 12px rgba(0,0,0,.12); pointer-events:none; }
+.shimmer { position:absolute; inset:0; background:linear-gradient(100deg,#F4EAE6 40%,#FDF6F3 50%,#F4EAE6 60%); background-size:200% 100%; animation:sh 1.2s infinite; display:flex; align-items:center; justify-content:center; font-size:22px; }
+@keyframes sh { to { background-position:-200% 0; } }
+.hint { text-align:center; font-size:12px; color:#B8AEAC; margin-top:16px; }
+.spin-wrap { text-align:center; padding:70px 0 30px; }
+.spinner { width:46px; height:46px; border-radius:50%; border:4px solid #F2E2E1; border-top-color:#E58B96; margin:0 auto 22px; animation:rot 0.9s linear infinite; }
+@keyframes rot { to { transform:rotate(360deg); } }
+.spin-msg { font-size:14.5px; line-height:1.8; color:#8A807E; }
+.opt { display:flex; align-items:center; gap:12px; width:100%; background:#fff; border:2px solid transparent; border-radius:16px;
+  padding:15px 16px; margin-bottom:11px; font-family:inherit; font-size:14.5px; color:#4A4544; cursor:pointer; text-align:left;
+  box-shadow:0 4px 14px rgba(214,112,125,.08); transition:transform .12s ease, border-color .12s ease; }
+.opt:active { transform:scale(.97); border-color:#E58B96; }
+.opt .oe { font-size:20px; }
+.btn { display:block; width:100%; border:none; border-radius:999px; padding:15px; font-family:inherit; font-size:15px; font-weight:700;
+  cursor:pointer; margin-top:12px; transition:transform .12s ease; }
+.btn:active { transform:scale(.97); }
+.btn.primary { background:linear-gradient(90deg,#E58B96,#D6707D); color:#fff; box-shadow:0 8px 20px rgba(214,112,125,.35); }
+.btn.ghost { background:#fff; color:#D6707D; border:2px solid #F2D5D6; }
+.upload-box { background:#fff; border:2px dashed #E8C8C9; border-radius:20px; padding:28px 18px; text-align:center; cursor:pointer; margin-bottom:14px; }
+.upload-box .ue { font-size:34px; }
+.upload-box p { font-size:12.5px; color:#8A807E; margin-top:8px; line-height:1.7; }
+#pprev { display:none; width:120px; height:120px; object-fit:cover; border-radius:16px; margin:12px auto 0; box-shadow:0 6px 16px rgba(0,0,0,.12); }
+.result-card { background:#fff; border-radius:24px; padding:26px 22px; text-align:center; box-shadow:0 10px 30px rgba(214,112,125,.14); margin-bottom:20px; }
+.r-label { font-size:12px; color:#C9A86A; letter-spacing:2px; font-weight:700; }
+.r-type { font-size:25px; font-weight:700; margin:10px 0 6px; color:#D6707D; line-height:1.4; }
+.r-catch { font-size:13.5px; color:#8A807E; margin-bottom:14px; }
+.r-desc { font-size:13.5px; line-height:2; text-align:left; color:#5C5654; }
+.chips { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:16px; }
+.chip { font-size:11.5px; background:#FBEDEC; color:#D6707D; border-radius:999px; padding:5px 13px; font-weight:700; }
+h3.imgs-title { text-align:center; font-size:15px; margin:24px 0 14px; }
+.main-img-box { position:relative; border-radius:22px; overflow:hidden; aspect-ratio:4/5; background:#F4EAE6; box-shadow:0 10px 28px rgba(214,112,125,.18); }
+.main-img-box img, .sub-box img { width:100%; height:100%; object-fit:cover; display:block; }
+.subs { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+.sub-box { position:relative; border-radius:16px; overflow:hidden; aspect-ratio:4/5; background:#F4EAE6; box-shadow:0 6px 16px rgba(214,112,125,.14); }
+.err-emoji { text-align:center; font-size:44px; margin:60px 0 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">FACE MATCH ✦ 好みの顔 診断</div>
+
+  <section id="home" class="screen active">
+    <h1>あなたの「好きな顔」、<br>AIが描きます。</h1>
+    <p class="sub">診断に答えるだけで、あなたの理想のタイプの<br>男性の顔をAIが生成してお見せします。</p>
+    <div class="mode-card" onclick="startPair()">
+      <span class="mc-emoji">👀</span>
+      <h3>直感2択診断</h3>
+      <p>2枚の顔写真から「好きな方」を選ぶだけ。考えなくてOK、直感で。</p>
+      <span class="mc-meta">全10問 ・ 約1分</span>
+    </div>
+    <div class="mode-card" onclick="startQuiz()">
+      <span class="mc-emoji">💬</span>
+      <h3>雰囲気診断</h3>
+      <p>AIがつくる質問に答えて、好きな「雰囲気」からタイプを導きます。好きな俳優さんの写真を参考にすることも。</p>
+      <span class="mc-meta">7問+写真もOK ・ 約2分</span>
+    </div>
+    <p class="footnote">※ 表示・生成される顔はすべてAIが作った架空の人物です。<br>実在の人物ではありません。</p>
+  </section>
+
+  <section id="pair" class="screen">
+    <div class="progress-outer"><div id="pbar" class="progress-inner"></div></div>
+    <div class="pcount" id="pcount">1 / 10</div>
+    <h2 class="q">直感で選んで。<br>好きなのは、どっち？</h2>
+    <div class="pair-grid" id="pgrid"><div class="vs">VS</div></div>
+    <p class="hint">写真をタップして選択 ✨</p>
+  </section>
+
+  <section id="quizload" class="screen">
+    <div class="spin-wrap">
+      <div class="spinner"></div>
+      <p class="spin-msg">AIがあなた専用の質問を<br>つくっています…</p>
+    </div>
+  </section>
+
+  <section id="quiz" class="screen">
+    <div class="progress-outer"><div id="qbar" class="progress-inner"></div></div>
+    <div class="pcount" id="qcount">1 / 7</div>
+    <h2 class="q" id="qtext"></h2>
+    <div id="qopts"></div>
+  </section>
+
+  <section id="photo" class="screen">
+    <h2 class="q">最後に。<br>「好きな顔」の写真、ありますか？</h2>
+    <p class="sub">好きな俳優さんなどの写真があれば、<br>雰囲気を参考にします。（任意・スキップOK）</p>
+    <div class="upload-box" onclick="document.getElementById('pfile').click()">
+      <span class="ue">📷</span>
+      <p>タップして写真を選ぶ<br><span style="font-size:10.5px;color:#B8AEAC">写真は診断にだけ使われ、保存されません</span></p>
+      <img id="pprev" alt="">
+      <p id="pnote" style="color:#D6707D;font-weight:700"></p>
+    </div>
+    <input type="file" id="pfile" accept="image/*" style="display:none" onchange="onFile(event)">
+    <button class="btn primary" onclick="finishQuiz()">結果を見る ✨</button>
+  </section>
+
+  <section id="analyzing" class="screen">
+    <div class="spin-wrap">
+      <div class="spinner"></div>
+      <p class="spin-msg" id="amsg">あなたの「好き」を分析中…</p>
+    </div>
+  </section>
+
+  <section id="result" class="screen">
+    <div class="result-card">
+      <div class="r-label">YOUR TYPE</div>
+      <div class="r-type" id="rtype"></div>
+      <div class="r-catch" id="rcatch"></div>
+      <p class="r-desc" id="rdesc"></p>
+      <div class="chips" id="rchips"></div>
+    </div>
+    <h3 class="imgs-title">AIが描いた、あなたの理想の顔 🎨</h3>
+    <div class="main-img-box" id="mainbox"></div>
+    <div class="subs"><div class="sub-box" id="sub1"></div><div class="sub-box" id="sub2"></div></div>
+    <button class="btn primary" onclick="regen()">🔄 別の顔を生成する</button>
+    <button class="btn ghost" onclick="goHome()">はじめからやり直す</button>
+    <p class="footnote">AI生成画像です。実在の人物ではありません。</p>
+  </section>
+
+  <section id="errsc" class="screen">
+    <div class="err-emoji">😢</div>
+    <h2 class="q">うまく分析できませんでした</h2>
+    <p class="sub">通信状況を確認して、もう一度試してみてください。</p>
+    <button class="btn primary" onclick="goHome()">ホームへ戻る</button>
+  </section>
+</div>
+
+<script>
+var API_URL = "https://utfyxsvxyvzxjqcgzjjl.supabase.co/functions/v1/face-match";
+var state = { round:0, votes:{}, quiz:[], qIndex:0, qa:[], photo:null, result:null };
+var BASE = "vertical portrait photograph of a handsome japanese man, head and shoulders, looking at camera, ";
+var TAIL = ", photorealistic, natural skin texture, soft studio lighting, plain warm beige background, 85mm lens";
+var AXES = { A:"顔立ち", B:"雰囲気", C:"年齢感", D:"スタイル", E:"顔の系統" };
+var PAIRS = [
+  { axis:"A", l:{ tag:"キリッと系", p:"sharp defined jawline, intense almond eyes, cool confident expression, short black hair", s:101 },
+              r:{ tag:"やさしい系", p:"soft gentle rounded features, kind warm droopy eyes, light gentle smile, fluffy brown hair", s:102 } },
+  { axis:"B", l:{ tag:"クール", p:"calm mysterious aura, composed neutral expression, sleek dark center-parted hair, black turtleneck", s:201 },
+              r:{ tag:"明るい", p:"bright cheerful friendly aura, big open smile, casual airy hair, white t-shirt", s:202 } },
+  { axis:"C", l:{ tag:"若々しい", p:"early twenties, youthful fresh boyish face, smooth skin, light casual hoodie", s:301 },
+              r:{ tag:"大人っぽい", p:"early thirties, mature refined gentleman look, subtle smile lines, navy jacket", s:302 } },
+  { axis:"D", l:{ tag:"ワイルド", p:"light stubble beard, rugged masculine vibe, tousled medium hair, denim jacket", s:401 },
+              r:{ tag:"清潔感", p:"clean shaven, very neat short groomed hair, crisp white shirt, fresh clean look", s:402 } },
+  { axis:"E", l:{ tag:"塩顔", p:"understated subtle facial features, narrow single-lid eyes, low-key minimal handsome look", s:501 },
+              r:{ tag:"濃い顔", p:"well defined deep-set features, clear double eyelids, strong bold eyebrows, striking look", s:502 } },
+  { axis:"A", l:{ tag:"キリッと系", p:"sharp defined jawline, piercing focused eyes, serious cool expression, short dark hair, grey jacket", s:111 },
+              r:{ tag:"やさしい系", p:"soft rounded gentle face, warm smiling eyes, relaxed kind expression, soft brown hair, beige cardigan", s:112 } },
+  { axis:"B", l:{ tag:"クール", p:"quiet elegant mysterious mood, calm gaze, neat dark hair, charcoal shirt", s:211 },
+              r:{ tag:"明るい", p:"sunny approachable energy, laughing warm smile, messy light hair, striped shirt", s:212 } },
+  { axis:"C", l:{ tag:"若々しい", p:"college student age, fresh youthful energetic face, bright eyes, campus sweatshirt", s:311 },
+              r:{ tag:"大人っぽい", p:"sophisticated adult in his thirties, composed reliable look, tailored shirt", s:312 } },
+  { axis:"D", l:{ tag:"ワイルド", p:"masculine rugged charm, slight beard shadow, wavy loose hair, open collar shirt", s:411 },
+              r:{ tag:"清潔感", p:"immaculate clean fresh appearance, tidy side-parted hair, smooth shave, light blue shirt", s:412 } },
+  { axis:"E", l:{ tag:"塩顔", p:"delicate understated features, calm narrow eyes, simple effortless handsome vibe", s:511 },
+              r:{ tag:"濃い顔", p:"dramatic well-carved features, large expressive double-lid eyes, thick eyebrows", s:512 } }
+];
+
+function go(id){
+  var sc = document.querySelectorAll(".screen");
+  for (var i=0;i<sc.length;i++){ sc[i].classList.remove("active"); }
+  document.getElementById(id).classList.add("active");
+  window.scrollTo(0,0);
+}
+function goHome(){ state = { round:0, votes:{}, quiz:[], qIndex:0, qa:[], photo:null, result:null }; go("home"); }
+
+function purl(p, s, m){
+  return "https://image.pollinations.ai/prompt/" + encodeURIComponent(p) + "?width=512&height=640&nologo=true&seed=" + s + "&model=" + m;
+}
+function attach(img, p, s){
+  img.dataset.retry = "0";
+  img.onerror = function(){
+    if (img.dataset.retry === "0"){ img.dataset.retry = "1"; img.src = purl(p, s, "turbo"); }
+  };
+  img.src = purl(p, s, "flux");
+}
+function fillImgBox(boxId, prompt, seed){
+  var box = document.getElementById(boxId);
+  box.innerHTML = "";
+  var sk = document.createElement("div"); sk.className = "shimmer"; sk.textContent = "🎨";
+  var img = document.createElement("img");
+  img.onload = function(){ sk.style.display = "none"; };
+  box.appendChild(img); box.appendChild(sk);
+  attach(img, prompt, seed);
+}
+
+/* ---------- 直感2択 ---------- */
+function startPair(){ state.round = 0; state.votes = {}; go("pair"); renderPair(); }
+function renderPair(){
+  var r = PAIRS[state.round];
+  document.getElementById("pbar").style.width = (state.round * 10) + "%";
+  document.getElementById("pcount").textContent = (state.round + 1) + " / 10";
+  var grid = document.getElementById("pgrid");
+  grid.innerHTML = "<div class='vs'>VS</div>";
+  var opts = [r.l, r.r];
+  for (var i=0;i<2;i++){
+    (function(idx){
+      var opt = opts[idx];
+      var card = document.createElement("div"); card.className = "pcard";
+      var sk = document.createElement("div"); sk.className = "shimmer"; sk.textContent = "✨";
+      var img = document.createElement("img");
+      img.onload = function(){ sk.style.display = "none"; };
+      card.appendChild(img); card.appendChild(sk);
+      card.onclick = function(){ pick(idx); };
+      grid.appendChild(card);
+      attach(img, BASE + opt.p + TAIL, opt.s);
+    })(i);
+  }
+  if (state.round + 1 < PAIRS.length){
+    var n = PAIRS[state.round + 1];
+    var pre1 = new Image(); pre1.src = purl(BASE + n.l.p + TAIL, n.l.s, "flux");
+    var pre2 = new Image(); pre2.src = purl(BASE + n.r.p + TAIL, n.r.s, "flux");
+  }
+}
+function pick(idx){
+  var r = PAIRS[state.round];
+  var tag = idx === 0 ? r.l.tag : r.r.tag;
+  if (!state.votes[r.axis]) state.votes[r.axis] = {};
+  state.votes[r.axis][tag] = (state.votes[r.axis][tag] || 0) + 1;
+  state.round++;
+  if (state.round < PAIRS.length){ renderPair(); } else { finishPairs(); }
+}
+function finishPairs(){
+  var summary = [];
+  var seen = {};
+  for (var i=0;i<PAIRS.length;i++){
+    var ax = PAIRS[i].axis;
+    if (seen[ax]) continue;
+    seen[ax] = true;
+    var v = state.votes[ax] || {};
+    var entry = { axis: AXES[ax], votes: v };
+    summary.push(entry);
+  }
+  analyze({ mode: "pairs", summary: summary });
+}
+
+/* ---------- 雰囲気診断 ---------- */
+function startQuiz(){
+  go("quizload");
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ action:"questions" }) })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (!d || !d.questions || !d.questions.length) throw new Error("no questions");
+      state.quiz = d.questions; state.qIndex = 0; state.qa = [];
+      go("quiz"); renderQ();
+    })
+    .catch(function(){ go("errsc"); });
+}
+function renderQ(){
+  var q = state.quiz[state.qIndex];
+  var total = state.quiz.length;
+  document.getElementById("qbar").style.width = Math.round(state.qIndex / total * 100) + "%";
+  document.getElementById("qcount").textContent = (state.qIndex + 1) + " / " + total;
+  document.getElementById("qtext").textContent = (q.emoji ? q.emoji + " " : "") + q.q;
+  var box = document.getElementById("qopts");
+  box.innerHTML = "";
+  for (var i=0;i<q.options.length;i++){
+    (function(idx){
+      var o = q.options[idx];
+      var b = document.createElement("button"); b.className = "opt";
+      b.innerHTML = "<span class='oe'>" + (o.emoji || "✨") + "</span><span>" + o.label + "</span>";
+      b.onclick = function(){ answerQ(idx); };
+      box.appendChild(b);
+    })(i);
+  }
+}
+function answerQ(idx){
+  var q = state.quiz[state.qIndex];
+  state.qa.push({ q: q.q, a: q.options[idx].label });
+  state.qIndex++;
+  if (state.qIndex < state.quiz.length){ renderQ(); } else { go("photo"); }
+}
+function onFile(e){
+  var f = e.target.files[0]; if (!f) return;
+  var rd = new FileReader();
+  rd.onload = function(){
+    var im = new Image();
+    im.onload = function(){
+      var mx = 600, w = im.width, h = im.height;
+      var sc = Math.min(1, mx / Math.max(w, h));
+      var cv = document.createElement("canvas");
+      cv.width = Math.round(w * sc); cv.height = Math.round(h * sc);
+      cv.getContext("2d").drawImage(im, 0, 0, cv.width, cv.height);
+      var du = cv.toDataURL("image/jpeg", 0.82);
+      state.photo = du.split(",")[1];
+      var pv = document.getElementById("pprev"); pv.src = du; pv.style.display = "block";
+      document.getElementById("pnote").textContent = "この写真の雰囲気を参考にします 📸";
+    };
+    im.src = rd.result;
+  };
+  rd.readAsDataURL(f);
+}
+function finishQuiz(){ analyze({ mode:"quiz", qa: state.qa }); }
+
+/* ---------- 分析 → 結果 ---------- */
+var AMSGS = ["あなたの「好き」を分析中…", "タイプの輪郭を描いています…", "AIがイメージをふくらませています…", "もうすぐ、理想の顔に会えます…"];
+var amsgTimer = null;
+function analyze(payload){
+  go("analyzing");
+  var i = 0;
+  document.getElementById("amsg").textContent = AMSGS[0];
+  if (amsgTimer) clearInterval(amsgTimer);
+  amsgTimer = setInterval(function(){ i = (i + 1) % AMSGS.length; document.getElementById("amsg").textContent = AMSGS[i]; }, 2600);
+  var body = { action:"analyze", mode: payload.mode, summary: payload.summary || null, qa: payload.qa || null, photo: state.photo };
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      clearInterval(amsgTimer);
+      if (!d || !d.result || !d.result.image_prompt) throw new Error("bad result");
+      state.result = d.result;
+      renderResult();
+    })
+    .catch(function(){ clearInterval(amsgTimer); go("errsc"); });
+}
+function renderResult(){
+  var r = state.result;
+  document.getElementById("rtype").textContent = r.type_name || "あなただけのタイプ";
+  document.getElementById("rcatch").textContent = r.catch || "";
+  document.getElementById("rdesc").textContent = r.description || "";
+  var chips = document.getElementById("rchips");
+  chips.innerHTML = "";
+  var kws = r.keywords || [];
+  for (var i=0;i<kws.length;i++){
+    var c = document.createElement("span"); c.className = "chip"; c.textContent = "# " + kws[i]; chips.appendChild(c);
+  }
+  go("result");
+  genImages();
+}
+function genImages(){
+  var p = state.result.image_prompt;
+  var s = Math.floor(Math.random() * 90000) + 1000;
+  fillImgBox("mainbox", p, s);
+  fillImgBox("sub1", p, s + 1);
+  fillImgBox("sub2", p, s + 2);
+}
+function regen(){ genImages(); window.scrollTo(0, document.getElementById("mainbox").offsetTop - 80); }
+</script>
+</body>
+</html>
