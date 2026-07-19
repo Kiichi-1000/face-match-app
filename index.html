@@ -32,7 +32,10 @@ h2.q { font-size:18px; text-align:center; line-height:1.6; margin-bottom:18px; }
 .pcard { position:relative; border-radius:18px; overflow:hidden; aspect-ratio:4/5; background:#F4EAE6;
   box-shadow:0 6px 18px rgba(214,112,125,.12); cursor:pointer; transition:transform .15s ease; }
 .pcard:active { transform:scale(.96); }
-.pcard img { width:100%; height:100%; object-fit:cover; display:block; }
+.pcard img { width:100%; height:100%; object-fit:cover; object-position:center 18%; display:block; }
+.pname { position:absolute; left:0; right:0; bottom:0; padding:22px 8px 8px; text-align:center;
+  font-size:12px; font-weight:700; color:#fff; text-shadow:0 1px 4px rgba(0,0,0,.6);
+  background:linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.45)); pointer-events:none; z-index:2; }
 .vs { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:3;
   background:#fff; color:#D6707D; font-weight:700; font-size:13px; border-radius:99px; padding:8px 12px;
   box-shadow:0 4px 12px rgba(0,0,0,.12); pointer-events:none; }
@@ -82,7 +85,7 @@ h3.imgs-title { text-align:center; font-size:15px; margin:24px 0 14px; }
     <div class="mode-card" onclick="startPair()">
       <span class="mc-emoji">👀</span>
       <h3>直感2択診断</h3>
-      <p>2枚の顔写真から「好きな方」を選ぶだけ。考えなくてOK、直感で。</p>
+      <p>俳優2人の写真から「好きな方」を選ぶだけ。考えなくてOK、直感で。</p>
       <span class="mc-meta">全10問 ・ 約1分</span>
     </div>
     <div class="mode-card" onclick="startQuiz()">
@@ -91,7 +94,7 @@ h3.imgs-title { text-align:center; font-size:15px; margin:24px 0 14px; }
       <p>AIがつくる質問に答えて、好きな「雰囲気」からタイプを導きます。好きな俳優さんの写真を参考にすることも。</p>
       <span class="mc-meta">7問+写真もOK ・ 約2分</span>
     </div>
-    <p class="footnote">※ 表示・生成される顔はすべてAIが作った架空の人物です。<br>実在の人物ではありません。</p>
+    <p class="footnote">※ 2択の俳優写真は Wikipedia（Wikimedia Commons）の公開画像を使用。<br>結果で生成される顔はAIが作った架空の人物です。</p>
   </section>
 
   <section id="pair" class="screen">
@@ -162,31 +165,30 @@ h3.imgs-title { text-align:center; font-size:15px; margin:24px 0 14px; }
 
 <script>
 var API_URL = "https://utfyxsvxyvzxjqcgzjjl.supabase.co/functions/v1/face-match";
-var state = { round:0, votes:{}, quiz:[], qIndex:0, qa:[], photo:null, result:null };
-var BASE = "vertical portrait photograph of a handsome japanese man, head and shoulders, looking at camera, ";
-var TAIL = ", photorealistic, natural skin texture, soft studio lighting, plain warm beige background, 85mm lens";
+var state = { round:0, votes:{}, picked:{}, passed:{}, quiz:[], qIndex:0, qa:[], photo:null, result:null };
 var AXES = { A:"顔立ち", B:"雰囲気", C:"年齢感", D:"スタイル", E:"顔の系統" };
+var WM = "https://upload.wikimedia.org/wikipedia/commons/";
 var PAIRS = [
-  { axis:"A", l:{ tag:"キリッと系", p:"sharp defined jawline, intense almond eyes, cool confident expression, short black hair", s:101 },
-              r:{ tag:"やさしい系", p:"soft gentle rounded features, kind warm droopy eyes, light gentle smile, fluffy brown hair", s:102 } },
-  { axis:"B", l:{ tag:"クール", p:"calm mysterious aura, composed neutral expression, sleek dark center-parted hair, black turtleneck", s:201 },
-              r:{ tag:"明るい", p:"bright cheerful friendly aura, big open smile, casual airy hair, white t-shirt", s:202 } },
-  { axis:"C", l:{ tag:"若々しい", p:"early twenties, youthful fresh boyish face, smooth skin, light casual hoodie", s:301 },
-              r:{ tag:"大人っぽい", p:"early thirties, mature refined gentleman look, subtle smile lines, navy jacket", s:302 } },
-  { axis:"D", l:{ tag:"ワイルド", p:"light stubble beard, rugged masculine vibe, tousled medium hair, denim jacket", s:401 },
-              r:{ tag:"清潔感", p:"clean shaven, very neat short groomed hair, crisp white shirt, fresh clean look", s:402 } },
-  { axis:"E", l:{ tag:"塩顔", p:"understated subtle facial features, narrow single-lid eyes, low-key minimal handsome look", s:501 },
-              r:{ tag:"濃い顔", p:"well defined deep-set features, clear double eyelids, strong bold eyebrows, striking look", s:502 } },
-  { axis:"A", l:{ tag:"キリッと系", p:"sharp defined jawline, piercing focused eyes, serious cool expression, short dark hair, grey jacket", s:111 },
-              r:{ tag:"やさしい系", p:"soft rounded gentle face, warm smiling eyes, relaxed kind expression, soft brown hair, beige cardigan", s:112 } },
-  { axis:"B", l:{ tag:"クール", p:"quiet elegant mysterious mood, calm gaze, neat dark hair, charcoal shirt", s:211 },
-              r:{ tag:"明るい", p:"sunny approachable energy, laughing warm smile, messy light hair, striped shirt", s:212 } },
-  { axis:"C", l:{ tag:"若々しい", p:"college student age, fresh youthful energetic face, bright eyes, campus sweatshirt", s:311 },
-              r:{ tag:"大人っぽい", p:"sophisticated adult in his thirties, composed reliable look, tailored shirt", s:312 } },
-  { axis:"D", l:{ tag:"ワイルド", p:"masculine rugged charm, slight beard shadow, wavy loose hair, open collar shirt", s:411 },
-              r:{ tag:"清潔感", p:"immaculate clean fresh appearance, tidy side-parted hair, smooth shave, light blue shirt", s:412 } },
-  { axis:"E", l:{ tag:"塩顔", p:"delicate understated features, calm narrow eyes, simple effortless handsome vibe", s:511 },
-              r:{ tag:"濃い顔", p:"dramatic well-carved features, large expressive double-lid eyes, thick eyebrows", s:512 } }
+  { axis:"A", l:{ tag:"キリッと系", name:"綾野剛", img: WM + "f/fc/Go_Ayano_20151028.jpg" },
+              r:{ tag:"やさしい系", name:"松坂桃李", img: WM + "thumb/2/21/Matsuzaka_Tori_from_%22Snowflowers_Seeds_of_Hope%22_at_Red_Carpet_of_the_Tokyo_International_Film_Festival_2024_%2854577942059%29.jpg/640px-Matsuzaka_Tori_from_%22Snowflowers_Seeds_of_Hope%22_at_Red_Carpet_of_the_Tokyo_International_Film_Festival_2024_%2854577942059%29.jpg" } },
+  { axis:"B", l:{ tag:"クール", name:"斎藤工", img: WM + "thumb/f/f0/Saitoh_Takumi_as_the_President_of_The_Ethical_Film_Award_Jury_at_Opening_Ceremony_of_the_Tokyo_International_Film_Festival_2024_%2854578189124%29.jpg/640px-Saitoh_Takumi_as_the_President_of_The_Ethical_Film_Award_Jury_at_Opening_Ceremony_of_the_Tokyo_International_Film_Festival_2024_%2854578189124%29.jpg" },
+              r:{ tag:"明るい", name:"菅田将暉", img: WM + "thumb/9/9e/Suda_Masaki_from_%22Sunset_Sunrise%22_at_Red_Carpet_of_the_Tokyo_International_Film_Festival_2024_%2854576992127%29.jpg/640px-Suda_Masaki_from_%22Sunset_Sunrise%22_at_Red_Carpet_of_the_Tokyo_International_Film_Festival_2024_%2854576992127%29.jpg" } },
+  { axis:"C", l:{ tag:"若々しい", name:"北村匠海", img: WM + "thumb/4/44/Kitamura_Takumi_from_%22Tremble_All_You_Want%22_at_Opening_Ceremony_of_the_Tokyo_International_Film_Festival_2017_%2826331141758%29.jpg/640px-Kitamura_Takumi_from_%22Tremble_All_You_Want%22_at_Opening_Ceremony_of_the_Tokyo_International_Film_Festival_2017_%2826331141758%29.jpg" },
+              r:{ tag:"大人っぽい", name:"堺雅人", img: WM + "b/b5/Masato_Sakai_International_Drama_Festival_in_Tokyo_2014_2.png" } },
+  { axis:"D", l:{ tag:"ワイルド", name:"山田孝之", img: WM + "thumb/7/7a/Yamada_Takayuki_from_%2211_Rebels%22_at_Red_Carpet_of_the_Tokyo_International_Film_Festival_2024_%2854577679751%29.jpg/640px-Yamada_Takayuki_from_%2211_Rebels%22_at_Red_Carpet_of_the_Tokyo_International_Film_Festival_2024_%2854577679751%29.jpg" },
+              r:{ tag:"清潔感", name:"坂口健太郎", img: WM + "thumb/d/d5/20240912_Kentaro_Sakaguchi_and_the_cast_of_the_television_drama_%22What_Comes_After_Love%22_06.jpg/640px-20240912_Kentaro_Sakaguchi_and_the_cast_of_the_television_drama_%22What_Comes_After_Love%22_06.jpg" } },
+  { axis:"E", l:{ tag:"塩顔", name:"星野源", img: WM + "thumb/d/d9/GenHoshino2017.jpg/640px-GenHoshino2017.jpg" },
+              r:{ tag:"濃い顔", name:"速水もこみち", img: WM + "a/ab/Mokomichi_Hayami.png" } },
+  { axis:"A", l:{ tag:"キリッと系", name:"横浜流星", img: WM + "9/9a/Ryusei_Yokohama_20190704.jpg" },
+              r:{ tag:"やさしい系", name:"神木隆之介", img: WM + "thumb/9/90/Kamiki_Ryunosuke_from_%22Godzilla_Minus_One%22_at_Red_Carpet_of_the_Tokyo_International_Film_Festival_2023_%2853348227359%29_%28cropped%29.jpg/640px-Kamiki_Ryunosuke_from_%22Godzilla_Minus_One%22_at_Red_Carpet_of_the_Tokyo_International_Film_Festival_2023_%2853348227359%29_%28cropped%29.jpg" } },
+  { axis:"B", l:{ tag:"クール", name:"玉木宏", img: WM + "thumb/2/29/Tamaki_Hiroshi_-_Jurassic_World_Fallen_Kingdom_Japan_Premiere_-_2018_%2829233654678%29_%28cropped%29.jpg/640px-Tamaki_Hiroshi_-_Jurassic_World_Fallen_Kingdom_Japan_Premiere_-_2018_%2829233654678%29_%28cropped%29.jpg" },
+              r:{ tag:"明るい", name:"竹内涼真", img: WM + "thumb/8/8b/Ryoma_Takeuchi_%28%E7%AB%B9%E5%86%85%E6%B6%BC%E7%9C%9F%29_-_Interview_in_Taiwan_on_August_08%2C_2019.png/640px-Ryoma_Takeuchi_%28%E7%AB%B9%E5%86%85%E6%B6%BC%E7%9C%9F%29_-_Interview_in_Taiwan_on_August_08%2C_2019.png" } },
+  { axis:"C", l:{ tag:"若々しい", name:"吉沢亮", img: WM + "thumb/a/a9/Yoshizawa_Ryo_from_%22Family%22_at_Red_Carpet_of_the_Tokyo_International_Film_Festival_2023_%2853348335033%29.jpg/640px-Yoshizawa_Ryo_from_%22Family%22_at_Red_Carpet_of_the_Tokyo_International_Film_Festival_2023_%2853348335033%29.jpg" },
+              r:{ tag:"大人っぽい", name:"大沢たかお", img: WM + "9/93/Takao_Osawa_20230925_1.jpg" } },
+  { axis:"D", l:{ tag:"ワイルド", name:"眞栄田郷敦", img: WM + "thumb/d/d8/Maeda_Gordon_from_%22Lightning_Over_the_Beyond%22_at_Red_Carpet_of_the_Tokyo_International_Film_Festival_2022_%2852461337594%29.jpg/640px-Maeda_Gordon_from_%22Lightning_Over_the_Beyond%22_at_Red_Carpet_of_the_Tokyo_International_Film_Festival_2022_%2852461337594%29.jpg" },
+              r:{ tag:"清潔感", name:"西島秀俊", img: WM + "thumb/e/e0/Nishijima_Hidetoshi_from_%22The_House_Where_the_Mermaid_Sleeps%22_World_Premiere_Red_Carpet_of_the_Tokyo_International_Film_Festival_2018_%2845632825492%29.jpg/640px-Nishijima_Hidetoshi_from_%22The_House_Where_the_Mermaid_Sleeps%22_World_Premiere_Red_Carpet_of_the_Tokyo_International_Film_Festival_2018_%2845632825492%29.jpg" } },
+  { axis:"E", l:{ tag:"塩顔", name:"高橋一生", img: WM + "thumb/2/2d/Issei_Takahashi_2024.jpg/640px-Issei_Takahashi_2024.jpg" },
+              r:{ tag:"濃い顔", name:"阿部寛", img: WM + "thumb/8/83/Abe_Hiroshi_from_%22Legend_of_the_Demon_Cat%22_at_Opening_Ceremony_of_the_Tokyo_International_Film_Festival_2017_%2825332258907%29.jpg/640px-Abe_Hiroshi_from_%22Legend_of_the_Demon_Cat%22_at_Opening_Ceremony_of_the_Tokyo_International_Film_Festival_2017_%2825332258907%29.jpg" } }
 ];
 
 function go(id){
@@ -195,7 +197,7 @@ function go(id){
   document.getElementById(id).classList.add("active");
   window.scrollTo(0,0);
 }
-function goHome(){ state = { round:0, votes:{}, quiz:[], qIndex:0, qa:[], photo:null, result:null }; imgQueue = []; go("home"); }
+function goHome(){ state = { round:0, votes:{}, picked:{}, passed:{}, quiz:[], qIndex:0, qa:[], photo:null, result:null }; imgQueue = []; go("home"); }
 
 function purl(p, s, m){
   return "https://image.pollinations.ai/prompt/" + encodeURIComponent(p) + "?width=512&height=640&nologo=true&seed=" + s + "&model=" + m;
@@ -239,8 +241,8 @@ function fillImgBox(boxId, prompt, seed){
   attach(img, prompt, seed);
 }
 
-/* ---------- 直感2択 ---------- */
-function startPair(){ state.round = 0; state.votes = {}; go("pair"); renderPair(); }
+/* ---------- 直感2択（実在俳優・Wikipedia公開写真） ---------- */
+function startPair(){ state.round = 0; state.votes = {}; state.picked = {}; state.passed = {}; go("pair"); renderPair(); }
 function renderPair(){
   var r = PAIRS[state.round];
   document.getElementById("pbar").style.width = (state.round * 10) + "%";
@@ -254,23 +256,30 @@ function renderPair(){
       var card = document.createElement("div"); card.className = "pcard";
       var sk = document.createElement("div"); sk.className = "shimmer"; sk.textContent = "✨";
       var img = document.createElement("img");
-      card.appendChild(img); card.appendChild(sk);
+      img.onload = function(){ sk.style.display = "none"; };
+      var nm = document.createElement("div"); nm.className = "pname"; nm.textContent = opt.name;
+      card.appendChild(img); card.appendChild(sk); card.appendChild(nm);
       card.onclick = function(){ pick(idx); };
       grid.appendChild(card);
-      attach(img, BASE + opt.p + TAIL, opt.s);
+      img.src = opt.img;
     })(i);
   }
   if (state.round + 1 < PAIRS.length){
     var n = PAIRS[state.round + 1];
-    attach(new Image(), BASE + n.l.p + TAIL, n.l.s);
-    attach(new Image(), BASE + n.r.p + TAIL, n.r.s);
+    (new Image()).src = n.l.img;
+    (new Image()).src = n.r.img;
   }
 }
 function pick(idx){
   var r = PAIRS[state.round];
-  var tag = idx === 0 ? r.l.tag : r.r.tag;
+  var win = idx === 0 ? r.l : r.r;
+  var lose = idx === 0 ? r.r : r.l;
   if (!state.votes[r.axis]) state.votes[r.axis] = {};
-  state.votes[r.axis][tag] = (state.votes[r.axis][tag] || 0) + 1;
+  state.votes[r.axis][win.tag] = (state.votes[r.axis][win.tag] || 0) + 1;
+  if (!state.picked[r.axis]) state.picked[r.axis] = [];
+  if (!state.passed[r.axis]) state.passed[r.axis] = [];
+  state.picked[r.axis].push(win.name);
+  state.passed[r.axis].push(lose.name);
   state.round++;
   if (state.round < PAIRS.length){ renderPair(); } else { finishPairs(); }
 }
@@ -281,9 +290,8 @@ function finishPairs(){
     var ax = PAIRS[i].axis;
     if (seen[ax]) continue;
     seen[ax] = true;
-    var v = state.votes[ax] || {};
-    var entry = { axis: AXES[ax], votes: v };
-    summary.push(entry);
+    summary.push({ axis: AXES[ax], votes: state.votes[ax] || {},
+      選んだ俳優: state.picked[ax] || [], 選ばなかった俳優: state.passed[ax] || [] });
   }
   analyze({ mode: "pairs", summary: summary });
 }
