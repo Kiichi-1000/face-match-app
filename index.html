@@ -215,6 +215,10 @@ function pump(){
   var done = false;
   t.img.onload = function(){
     if (done) return; done = true;
+    if (t.img.parentNode){
+      var sk = t.img.parentNode.querySelector(".shimmer");
+      if (sk) sk.style.display = "none";
+    }
     setTimeout(function(){ imgBusy = false; pump(); }, 1200);
   };
   t.img.onerror = function(){
@@ -231,7 +235,6 @@ function fillImgBox(boxId, prompt, seed){
   box.innerHTML = "";
   var sk = document.createElement("div"); sk.className = "shimmer"; sk.textContent = "🎨";
   var img = document.createElement("img");
-  img.onload = function(){ sk.style.display = "none"; };
   box.appendChild(img); box.appendChild(sk);
   attach(img, prompt, seed);
 }
@@ -251,7 +254,6 @@ function renderPair(){
       var card = document.createElement("div"); card.className = "pcard";
       var sk = document.createElement("div"); sk.className = "shimmer"; sk.textContent = "✨";
       var img = document.createElement("img");
-      img.onload = function(){ sk.style.display = "none"; };
       card.appendChild(img); card.appendChild(sk);
       card.onclick = function(){ pick(idx); };
       grid.appendChild(card);
