@@ -195,17 +195,36 @@ function go(id){
   document.getElementById(id).classList.add("active");
   window.scrollTo(0,0);
 }
-function goHome(){ state = { round:0, votes:{}, quiz:[], qIndex:0, qa:[], photo:null, result:null }; go("home"); }
+function goHome(){ state = { round:0, votes:{}, quiz:[], qIndex:0, qa:[], photo:null, result:null }; imgQueue = []; go("home"); }
 
 function purl(p, s, m){
   return "https://image.pollinations.ai/prompt/" + encodeURIComponent(p) + "?width=512&height=640&nologo=true&seed=" + s + "&model=" + m;
 }
+/* Pollinations の匿名レート制限対策: 直列キュー + 間隔 + リトライ */
+var imgQueue = [];
+var imgBusy = false;
 function attach(img, p, s){
-  img.dataset.retry = "0";
-  img.onerror = function(){
-    if (img.dataset.retry === "0"){ img.dataset.retry = "1"; img.src = purl(p, s, "turbo"); }
+  imgQueue.push({ img: img, p: p, s: s, tries: 0 });
+  pump();
+}
+function pump(){
+  if (imgBusy || imgQueue.length === 0) return;
+  imgBusy = true;
+  var t = imgQueue.shift();
+  var model = (t.tries < 2) ? "flux" : "turbo";
+  var done = false;
+  t.img.onload = function(){
+    if (done) return; done = true;
+    setTimeout(function(){ imgBusy = false; pump(); }, 1200);
   };
-  img.src = purl(p, s, "flux");
+  t.img.onerror = function(){
+    if (done) return; done = true;
+    imgBusy = false;
+    t.tries++;
+    if (t.tries < 4){ setTimeout(function(){ imgQueue.push(t); pump(); }, 5000); }
+    pump();
+  };
+  t.img.src = purl(t.p, t.s, model);
 }
 function fillImgBox(boxId, prompt, seed){
   var box = document.getElementById(boxId);
@@ -241,8 +260,8 @@ function renderPair(){
   }
   if (state.round + 1 < PAIRS.length){
     var n = PAIRS[state.round + 1];
-    var pre1 = new Image(); pre1.src = purl(BASE + n.l.p + TAIL, n.l.s, "flux");
-    var pre2 = new Image(); pre2.src = purl(BASE + n.r.p + TAIL, n.r.s, "flux");
+    attach(new Image(), BASE + n.l.p + TAIL, n.l.s);
+    attach(new Image(), BASE + n.r.p + TAIL, n.r.s);
   }
 }
 function pick(idx){
@@ -360,6 +379,7 @@ function renderResult(){
   genImages();
 }
 function genImages(){
+  imgQueue = [];
   var p = state.result.image_prompt;
   var s = Math.floor(Math.random() * 90000) + 1000;
   fillImgBox("mainbox", p, s);
